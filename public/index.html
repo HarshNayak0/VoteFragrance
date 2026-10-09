@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vote My Next Fragrance</title>
+  <meta name="description" content="I'm doing 75 Hard: Cologne Edition. When I finish, you pick the fragrance I buy. Cast your vote.">
+  <meta property="og:title" content="Vote My Next Fragrance">
+  <meta property="og:description" content="75 Hard: Cologne Edition. You pick the bottle I earn.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="hero">
+    <p class="eyebrow" id="subtitle">75 Hard: Cologne Edition</p>
+    <h1 id="title">Vote My Next Fragrance</h1>
+    <p class="tagline" id="tagline"></p>
+
+    <section class="progress" aria-label="Challenge progress">
+      <div class="progress-head">
+        <span id="day-label">Day 0 of 75</span>
+        <span id="day-status"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    </section>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <p id="status" role="status">Loading the lineup…</p>
+      <button class="share" id="share" type="button">Share the vote</button>
+    </div>
+    <ol class="grid" id="grid"></ol>
+  </main>
+
+  <footer>
+    <p><span id="total">0 votes</span> so far · one vote per person, change it anytime until voting closes.</p>
+  </footer>
+
+  <template id="card-template">
+    <li class="card">
+      <button class="card-btn" type="button">
+        <span class="bottle" aria-hidden="true"><span class="cap"></span><span class="glass"></span></span>
+        <span class="info">
+          <span class="house"></span>
+          <span class="name"></span>
+          <span class="notes"></span>
+          <span class="vibe"></span>
+        </span>
+        <span class="pick">Vote</span>
+      </button>
+      <div class="result" hidden>
+        <div class="bar"><div class="bar-fill"></div></div>
+        <span class="pct"></span>
+      </div>
+    </li>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>

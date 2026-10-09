@@ -1,0 +1,20 @@
+# One-click deploy on Render: New > Blueprint > pick this repo.
+# The disk keeps votes across restarts and redeploys (disks need a paid instance).
+services:
+  - type: web
+    name: vote-fragrance
+    runtime: node
+    plan: starter
+    buildCommand: "true"
+    startCommand: node server.js
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+      - key: TRUST_PROXY
+        value: "1"
+      - key: IP_SALT
+        generateValue: true
+    disk:
+      name: votes
+      mountPath: /var/data
+      sizeGB: 1
