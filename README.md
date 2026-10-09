@@ -6,7 +6,7 @@ A tiny website where anyone can vote on the cologne I buy after finishing **75 H
 - One vote per person (cookie-based), changeable until voting closes
 - Live results appear after you vote and refresh every 15 seconds
 - Light and dark mode, works on phones
-- Zero dependencies: plain Node.js, votes stored in a JSON file
+- Zero dependencies: plain Node.js. Runs on Vercel with Upstash Redis, or locally with a JSON file
 
 ## Run it locally
 
@@ -31,31 +31,28 @@ Everything lives in [`config.json`](config.json):
 
 Don't rename or remove an `id` after votes come in: votes for it would stop counting.
 
-## Put it online
+## Put it online (Vercel)
 
-The site needs a server with a persistent disk so votes survive restarts.
+1. Push this repo to GitHub, then in Vercel choose **Add New → Project** and import it. Leave every build setting at its default; `vercel.json` already handles them.
+2. In the project, open **Storage → Create Database → Upstash (Redis)**, use the free plan, and connect it to the project. Vercel adds the database keys to the project automatically.
+3. Redeploy (**Deployments → ⋯ → Redeploy**) so the functions pick up the keys.
 
-**Render (easiest):** push this repo to GitHub, then in Render choose *New → Blueprint* and pick the repo.
-`render.yaml` sets up the service and a 1 GB disk for votes. Render's free tier has no persistent disk, so votes would be wiped whenever it restarts; use the Starter plan.
+That's it. Share the `*.vercel.app` URL, or add your own domain under **Settings → Domains**.
 
-**Anywhere with Docker** (Fly.io, Railway, a VPS):
+How it fits together on Vercel: `public/` is served as the static site, and `api/state.js` and `api/vote.js` run as serverless functions that keep votes in Redis. If the site says "No database connected", step 2 or 3 was skipped.
 
-```bash
-docker build -t vote-fragrance .
-docker run -p 3000:3000 -v vote-data:/data vote-fragrance
-```
-
-Mount a volume at `/data` so votes persist.
+Locally, `npm start` stores votes in `data/votes.json` instead, unless you set the Redis variables below.
 
 ### Environment variables
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `PORT` | `3000` | Port to listen on |
-| `DATA_DIR` | `./data` | Where `votes.json` is written |
-| `TRUST_PROXY` | off | Set to `1` behind a proxy/load balancer so the real client IP is used and cookies are `Secure` |
+| `DATA_DIR` | `./data` | Local server only: where `votes.json` is written |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | none | Upstash Redis credentials. Vercel sets these when you connect the database (the older `UPSTASH_REDIS_REST_URL`/`_TOKEN` names also work). |
+| `TRUST_PROXY` | off | Local server only: set to `1` behind a proxy so the real client IP is used and cookies are `Secure`. Always on for Vercel. |
 | `IP_SALT` | `vote-fragrance` | Salt for hashing IPs (raw IPs are never stored) |
 
 ## Peeking at the raw votes
 
-`GET /api/state` returns the full tally, or read `DATA_DIR/votes.json` directly.
+`GET /api/state` returns the full tally. On Vercel you can also browse the `vf:counts` hash in the Upstash console.
