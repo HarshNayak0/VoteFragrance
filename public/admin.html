@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Challenge Admin</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .topbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding-block: 24px; }
+    .topbar h1 { font-size: 28px; }
+    .topbar nav { display: flex; gap: 8px; flex-wrap: wrap; }
+    .banner { padding: 12px 16px; border-radius: 10px; background: var(--brass-soft); margin-bottom: 8px; }
+    .checks { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 14px; }
+    .checks li::before { content: "○ "; color: var(--muted); }
+    .checks li.met::before { content: "✓ "; color: var(--pass); }
+    .checks li.missed::before { content: "✕ "; color: var(--fail); }
+    .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+    .item {
+      display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between;
+      padding: 12px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    }
+    .item .meta { min-width: 0; display: grid; gap: 2px; }
+    .item .meta b { font-weight: 600; }
+    .item .meta span { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .item .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .item .btn { padding: 6px 14px; font-size: 13px; }
+    h3 { font: 600 13px/1.4 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 24px 0 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h1>Challenge admin</h1>
+      <nav>
+        <a class="btn ghost" href="/">View site</a>
+        <button class="btn ghost" id="logout" type="button" hidden>Log out</button>
+      </nav>
+    </div>
+
+    <section id="login-view" hidden>
+      <form class="form" id="login-form">
+        <label for="password">Admin password<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="btn" type="submit">Log in</button>
+        <p class="form-msg" id="login-msg" role="status"></p>
+      </form>
+    </section>
+
+    <div id="admin-view" hidden>
+      <div class="banner" id="setup-banner" hidden>Set your start date and time zone under <a href="#settings">Settings</a> so the site can count your days.</div>
+
+      <section id="log" aria-labelledby="log-h">
+        <header><p class="eyebrow">Daily log</p><h2 id="log-h">Log a day</h2></header>
+        <form class="form" id="day-form">
+          <label for="d-date">Date<input id="d-date" type="date" required></label>
+          <div class="row" id="day-inputs"></div>
+          <label for="d-note">Note (private, only you see it)<textarea id="d-note" maxlength="280"></textarea></label>
+          <ul class="checks" id="day-checks"></ul>
+          <button class="btn" type="submit">Save day</button>
+          <p class="form-msg" id="day-msg" role="status"></p>
+        </form>
+        <h3>Logged days</h3>
+        <ul class="list" id="day-list"></ul>
+      </section>
+
+      <section id="fragrances" aria-labelledby="frag-h">
+        <header><p class="eyebrow">The ballot</p><h2 id="frag-h">Fragrances</h2></header>
+        <form class="form" id="frag-form">
+          <div class="row">
+            <label for="f-name">Fragrance<input id="f-name" maxlength="80" required></label>
+            <label for="f-house">Brand<input id="f-house" maxlength="60"></label>
+          </div>
+          <label for="f-notes">Key notes, comma separated<input id="f-notes" placeholder="Bergamot, lavender, amber"></label>
+          <label for="f-vibe">Short description<input id="f-vibe" maxlength="160"></label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn" type="submit" id="f-submit">Add to ballot</button>
+            <button class="btn ghost" type="button" id="f-cancel" hidden>Cancel edit</button>
+          </div>
+          <p class="form-msg" id="frag-msg" role="status"></p>
+        </form>
+        <h3>Suggestions waiting for you</h3>
+        <ul class="list" id="pending-list"></ul>
+        <h3>On the ballot</h3>
+        <ul class="list" id="ballot-list"></ul>
+      </section>
+
+      <section id="settings" aria-labelledby="settings-h">
+        <header><p class="eyebrow">Setup</p><h2 id="settings-h">Settings</h2></header>
+        <form class="form" id="settings-form">
+          <label for="s-title">Site title<input id="s-title" maxlength="80" required></label>
+          <label for="s-tagline">Tagline<textarea id="s-tagline" maxlength="240"></textarea></label>
+          <div class="row">
+            <label for="s-start">Day 1 of the challenge<input id="s-start" type="date"></label>
+            <label for="s-tz">Your time zone<input id="s-tz" list="tz-list" required></label>
+          </div>
+          <datalist id="tz-list"></datalist>
+          <button class="btn" type="submit">Save settings</button>
+          <p class="form-msg" id="settings-msg" role="status"></p>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <script src="/common.js"></script>
+  <script src="/admin.js"></script>
+</body>
+</html>

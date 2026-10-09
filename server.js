@@ -1,13 +1,13 @@
 'use strict';
 
-// Local development / self-hosting server. On Vercel, api/*.js serve the API
-// and public/ is served as static files instead.
+// Local development server. On Vercel, public/ is served as static files and
+// api/**.js run as functions instead; both share lib/api.js.
 
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createApi, loadConfig } = require('./lib/api');
-const { createFileStore, createRedisStore, redisConfigFromEnv } = require('./lib/stores');
+const { createApi } = require('./lib/api');
+const { createMemoryStore, createRedisStore, redisConfigFromEnv } = require('./lib/stores');
 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MIME = {
@@ -19,19 +19,12 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
-function createApp({
-  configPath,
-  dataDir = process.env.DATA_DIR || path.join(__dirname, 'data'),
-  trustProxy = process.env.TRUST_PROXY === '1',
-  store,
-  now,
-} = {}) {
+function createApp({ store, adminPassword, now } = {}) {
   const redis = redisConfigFromEnv();
   const handleApi = createApi({
-    config: loadConfig(configPath),
-    store: store || (redis ? createRedisStore(redis) : createFileStore(dataDir)),
-    trustProxy,
-    now,
+    store: store || (redis ? createRedisStore(redis) : createMemoryStore(path.join(__dirname, 'data'))),
+    ...(adminPassword !== undefined && { adminPassword }),
+    ...(now && { now }),
   });
 
   function serveStatic(req, res, pathname) {
@@ -39,7 +32,9 @@ function createApp({
       res.writeHead(405);
       return res.end();
     }
-    const rel = pathname === '/' ? 'index.html' : pathname.slice(1);
+    // Mirror Vercel's cleanUrls: /admin serves admin.html.
+    let rel = pathname === '/' ? 'index.html' : pathname.slice(1);
+    if (!path.extname(rel)) rel += '.html';
     const file = path.normalize(path.join(PUBLIC_DIR, rel));
     if (!file.startsWith(PUBLIC_DIR + path.sep)) {
       res.writeHead(403);
@@ -69,8 +64,9 @@ function createApp({
 }
 
 if (require.main === module) {
+  if (!process.env.ADMIN_PASSWORD) console.warn('ADMIN_PASSWORD is not set: the admin page will be locked. Try ADMIN_PASSWORD=dev npm start');
   const port = Number(process.env.PORT) || 3000;
-  createApp().listen(port, () => console.log(`Vote My Next Fragrance running on http://localhost:${port}`));
+  createApp().listen(port, () => console.log(`Running on http://localhost:${port} (admin: http://localhost:${port}/admin)`));
 }
 
 module.exports = { createApp };

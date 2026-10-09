@@ -1,14 +1,13 @@
 {
   "name": "vote-fragrance",
-  "version": "1.0.0",
-  "description": "Let anyone vote on the next fragrance I buy after finishing 75 Hard: Cologne Edition.",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "Track 75 Hard: Cologne Edition and let visitors vote on the fragrance I buy when I finish.",
   "private": true,
   "scripts": {
-    "start": "node server.js",
+    "dev": "node server.js",
     "test": "node --test"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

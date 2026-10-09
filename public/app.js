@@ -1,130 +1,187 @@
 'use strict';
 
-const $ = (id) => document.getElementById(id);
-const DAY_MS = 24 * 60 * 60 * 1000;
 let state = null;
 let busy = false;
 
-function hueFor(id) {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return h;
-}
+function renderProgress(p) {
+  const pill = $('attempt-pill');
+  const big = $('day-big');
+  const status = $('day-status');
+  pill.className = 'pill';
 
-function renderProgress({ challengeStartDate, challengeDays }) {
-  if (!challengeStartDate) return;
-  const start = new Date(`${challengeStartDate}T00:00:00`);
-  const elapsed = Math.floor((Date.now() - start) / DAY_MS) + 1;
-  const day = Math.max(0, Math.min(challengeDays, elapsed));
-  $('day-label').textContent = elapsed < 1 ? 'Starts soon' : `Day ${day} of ${challengeDays}`;
-  $('day-status').textContent =
-    elapsed > challengeDays ? 'Challenge complete' : elapsed < 1 ? '' : `${challengeDays - day} to go`;
-  $('progress-fill').style.width = `${(day / challengeDays) * 100}%`;
-}
-
-function buildCards() {
-  const grid = $('grid');
-  const tpl = $('card-template');
-  grid.replaceChildren();
-  for (const f of state.fragrances) {
-    const node = tpl.content.firstElementChild.cloneNode(true);
-    node.dataset.id = f.id;
-    node.style.setProperty('--hue', hueFor(f.id));
-    node.querySelector('.house').textContent = f.house;
-    node.querySelector('.name').textContent = f.name;
-    node.querySelector('.vibe').textContent = f.vibe || '';
-    const notes = node.querySelector('.notes');
-    for (const n of f.notes || []) {
-      const chip = document.createElement('span');
-      chip.className = 'note';
-      chip.textContent = n;
-      notes.append(chip);
+  if (p.status === 'not-set' || p.status === 'not-started') {
+    pill.textContent = 'Starting soon';
+    big.innerHTML = 'Day 0<small> / 75</small>';
+    status.textContent = p.startDate ? `Day 1 is ${fmtDate(p.startDate, { weekday: 'long', month: 'long', day: 'numeric' })}.` : 'The start date has not been set yet.';
+  } else if (p.status === 'complete') {
+    pill.textContent = 'Challenge complete';
+    pill.classList.add('pass');
+    big.innerHTML = '75<small> / 75</small>';
+    status.textContent = `Finished on ${fmtDate(p.completedOn, { month: 'long', day: 'numeric', year: 'numeric' })}${p.attempt > 1 ? ` on attempt ${p.attempt}` : ''}.`;
+  } else {
+    pill.textContent = `Attempt ${p.attempt}`;
+    big.innerHTML = `Day ${Math.min(p.streak + 1, 75)}<small> / 75</small>`;
+    if (p.todayStatus === 'restarts-tomorrow') {
+      pill.classList.add('fail');
+      pill.textContent = `Attempt ${p.attempt} starts tomorrow`;
+      big.innerHTML = 'Day 0<small> / 75</small>';
+      status.textContent = "Missed today. Back to Day 1 tomorrow.";
+    } else if (p.todayStatus === 'pass') {
+      big.innerHTML = `Day ${p.streak}<small> / 75</small>`;
+      status.textContent = `Today is done. ${75 - p.streak} days to go.`;
+    } else {
+      status.textContent = `${p.streak} ${p.streak === 1 ? 'day' : 'days'} completed, ${75 - p.streak} to go.`;
     }
-    node.querySelector('.card-btn').addEventListener('click', () => vote(f.id));
-    grid.append(node);
   }
+
+  // Today's four tasks
+  const today = [...(p.calendar || []), ...(p.pastCalendar || [])].find((c) => c.date === p.today);
+  $('tasks-heading').textContent = `Today, ${fmtDate(p.today, { weekday: 'long', month: 'short', day: 'numeric' })}`;
+  $('tasks').replaceChildren(
+    ...p.tasks.map((t) => {
+      const r = today && today.tasks.find((x) => x.key === t.key);
+      const logged = r && r.value !== null;
+      const cls = !logged ? '' : r.met ? 'met' : 'missed';
+      return el('li', { class: `task ${cls}` },
+        el('span', { class: 'mark', 'aria-hidden': 'true' }, !logged ? '' : r.met ? '✓' : '✕'),
+        el('span', { class: 'label' }, t.label),
+        el('span', { class: 'value' }, fmtTaskValue(t, logged ? r.value : null)));
+    }),
+  );
+
+  // 75 cells for the current attempt
+  const cal = $('calendar');
+  const cells = [];
+  const byDay = new Map((p.calendar || []).map((c) => [c.day, c]));
+  for (let d = 1; d <= 75; d++) {
+    const c = byDay.get(d);
+    const passedAll = p.status === 'complete';
+    const cls = c ? c.status : passedAll ? 'pass' : '';
+    const label = c ? `Day ${d}, ${fmtDate(c.date)}: ${c.status === 'pass' ? 'complete' : c.status}` : `Day ${d}`;
+    cells.push(el('div', { class: `cell ${cls}`, title: label, 'aria-label': label }, String(d)));
+  }
+  cal.replaceChildren(...cells);
+
+  // Totals across every day logged since the start
+  const t = p.totals;
+  const stat = (value, label) => el('div', { class: 'stat' }, el('b', {}, value), el('span', {}, label));
+  $('stats').replaceChildren(
+    stat(fmtNum(t.steps), 'steps walked'),
+    stat(`${fmtNum(Math.round(t.workoutMin / 60))} h`, 'of workouts'),
+    stat(fmtNum(t.deficit), 'calories cut'),
+    stat(`${fmtNum(Math.round(t.frenchMin / 60 * 10) / 10)} h`, 'of French'),
+    stat(fmtNum(t.daysLogged), 'days logged'),
+    stat(fmtNum(p.bestStreak || 0), 'best streak (days)'),
+  );
+
+  const past = (p.attempts || []).filter((a) => a.endedBy);
+  $('attempts').replaceChildren(
+    ...past.map((a) =>
+      el('li', {}, `Attempt ${a.number}: ${a.days} ${a.days === 1 ? 'day' : 'days'} (${fmtDate(a.start)}–${fmtDate(a.end)}), ended by a ${a.endedBy === 'missed' ? 'day with no log' : 'missed task'}.`)),
+  );
 }
 
-function renderResults() {
-  const counts = Object.fromEntries(state.results.map((r) => [r.id, r.votes]));
-  const top = state.results[0] && state.results[0].votes > 0 ? state.results[0].votes : null;
-  const showResults = Boolean(state.myVote) || !state.votingOpen;
+function renderBallot() {
+  const { fragrances, total, myVote, votingOpen, winners } = state;
+  const showTally = Boolean(myVote) || !votingOpen;
 
-  for (const card of $('grid').children) {
-    const id = card.dataset.id;
-    const votes = counts[id] || 0;
-    const pct = state.total ? Math.round((votes / state.total) * 100) : 0;
-    const chosen = state.myVote === id;
-    card.classList.toggle('chosen', chosen);
-    card.classList.toggle('leader', showResults && top !== null && votes === top);
-    card.querySelector('.pick').textContent = chosen ? 'Your pick ✓' : state.myVote ? 'Switch to this' : 'Vote';
-    card.querySelector('.card-btn').disabled = !state.votingOpen || busy;
-    card.querySelector('.card-btn').setAttribute('aria-pressed', String(chosen));
-    const result = card.querySelector('.result');
-    result.hidden = !showResults;
-    result.querySelector('.bar-fill').style.width = `${pct}%`;
-    result.querySelector('.pct').textContent = `${votes} · ${pct}%`;
+  const winnerBox = $('winner');
+  winnerBox.hidden = winners.length === 0;
+  if (winners.length) {
+    const names = winners.map((id) => fragrances.find((f) => f.id === id)).map((f) => `${f.house ? f.house + ' ' : ''}${f.name}`);
+    winnerBox.replaceChildren(
+      el('span', { class: 'eyebrow' }, winners.length > 1 ? "It's a tie" : 'The internet has spoken'),
+      el('strong', {}, names.join(' & ')),
+      el('span', { class: 'muted' }, `Final tally: ${fmtNum(total)} ${total === 1 ? 'vote' : 'votes'}.`),
+    );
+  }
+  $('vote-intro').textContent = votingOpen
+    ? 'One vote per person. Change it anytime until I finish Day 75.'
+    : 'Voting closed when I finished Day 75.';
+
+  if (!fragrances.length) {
+    $('ballot').replaceChildren(el('li', { class: 'empty' }, 'The lineup is coming soon. Suggest a fragrance below while you wait.'));
+    $('ballot-status').textContent = '';
+    return;
   }
 
-  $('total').textContent = `${state.total} ${state.total === 1 ? 'vote' : 'votes'}`;
-  if (!state.votingOpen) $('status').textContent = 'Voting is closed. Thanks for helping me pick!';
-  else if (state.myVote) $('status').textContent = 'Vote counted. Tap another bottle to change your pick.';
-  else $('status').textContent = 'Tap a bottle to cast your vote. Results appear after you vote.';
+  $('ballot').replaceChildren(
+    ...fragrances.map((f) => {
+      const pct = total ? Math.round((f.votes / total) * 100) : 0;
+      const mine = f.id === myVote;
+      const btn = el('button', {
+        class: `choice${mine ? ' mine' : ''}`,
+        type: 'button',
+        'aria-pressed': String(mine),
+        disabled: !votingOpen || busy,
+        onclick: () => vote(f.id),
+      },
+        el('span', { class: 'fill', style: `width:${showTally ? pct : 0}%` }),
+        el('span', {},
+          f.house ? el('span', { class: 'house' }, f.house) : null,
+          el('span', { class: 'name' }, f.name),
+          f.notes && f.notes.length ? el('span', { class: 'notes' }, f.notes.join(' · ')) : null,
+          f.vibe ? el('span', { class: 'notes' }, f.vibe) : null),
+        el('span', { class: 'tally' },
+          showTally ? `${pct}%` : mine ? '' : 'Vote',
+          showTally ? el('small', {}, mine ? 'your pick' : `${fmtNum(f.votes)} ${f.votes === 1 ? 'vote' : 'votes'}`) : null));
+      return el('li', {}, btn);
+    }),
+  );
+  $('ballot-status').textContent = !votingOpen
+    ? ''
+    : myVote
+      ? `${fmtNum(total)} ${total === 1 ? 'vote' : 'votes'} so far. Tap another bottle to switch.`
+      : 'Tap a bottle to vote. Results show after you vote.';
 }
 
 async function load() {
-  const res = await fetch('/api/state', { credentials: 'same-origin' });
-  if (!res.ok) throw new Error('Could not load');
-  const first = !state;
-  state = await res.json();
-  if (first) {
-    document.title = state.title;
-    $('title').textContent = state.title;
-    $('subtitle').textContent = state.subtitle;
-    $('tagline').textContent = state.tagline;
-    renderProgress(state);
-    buildCards();
-  }
-  renderResults();
+  state = await api('/api/state');
+  document.title = state.title;
+  $('title').textContent = state.title;
+  $('tagline').textContent = state.tagline;
+  renderProgress(state.progress);
+  renderBallot();
 }
 
-async function vote(fragranceId) {
-  if (busy || fragranceId === state.myVote) return;
+async function vote(id) {
+  if (busy || id === state.myVote) return;
   busy = true;
-  renderResults();
+  renderBallot();
   try {
-    const res = await fetch('/api/vote', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fragranceId }),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Vote failed');
-    Object.assign(state, body);
+    const result = await api('/api/vote', { method: 'POST', body: { fragranceId: id } });
+    Object.assign(state, result);
+    busy = false;
+    renderBallot();
   } catch (err) {
     busy = false;
-    renderResults();
-    $('status').textContent = err.message;
-    return;
+    renderBallot();
+    $('ballot-status').textContent = err.message;
   }
-  busy = false;
-  renderResults();
 }
 
-$('share').addEventListener('click', async () => {
-  const data = { title: document.title, text: 'Help pick the fragrance I earn after 75 Hard!', url: location.href };
+$('suggest-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const msg = $('suggest-msg');
+  const button = form.querySelector('button');
+  button.disabled = true;
+  msg.className = 'form-msg';
+  msg.textContent = 'Sending…';
   try {
-    if (navigator.share) await navigator.share(data);
-    else {
-      await navigator.clipboard.writeText(location.href);
-      $('share').textContent = 'Link copied!';
-      setTimeout(() => ($('share').textContent = 'Share the vote'), 2000);
-    }
-  } catch {
-    /* user dismissed the share sheet */
+    const res = await api('/api/suggest', { method: 'POST', body: { name: $('s-name').value, house: $('s-house').value } });
+    msg.className = 'form-msg ok';
+    msg.textContent = res.message;
+    form.reset();
+  } catch (err) {
+    msg.className = 'form-msg error';
+    msg.textContent = err.message;
   }
+  button.disabled = false;
 });
 
-load().catch(() => ($('status').textContent = 'Could not load the lineup. Refresh to try again.'));
-setInterval(() => !busy && !document.hidden && load().catch(() => {}), 15000);
+load().catch(() => {
+  $('attempt-pill').textContent = 'Offline';
+  $('day-status').textContent = "Couldn't load the latest progress. Refresh to try again.";
+});
+setInterval(() => !busy && !document.hidden && load().catch(() => {}), 30000);

@@ -4,61 +4,76 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Vote My Next Fragrance</title>
-  <meta name="description" content="I'm doing 75 Hard: Cologne Edition. When I finish, you pick the fragrance I buy. Cast your vote.">
+  <meta name="description" content="Follow my 75 Hard: Cologne Edition challenge and vote on the fragrance I buy when I finish.">
   <meta property="og:title" content="Vote My Next Fragrance">
-  <meta property="og:description" content="75 Hard: Cologne Edition. You pick the bottle I earn.">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta property="og:description" content="75 days of workouts, steps, discipline and French. You pick the bottle I earn.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <header class="hero">
-    <p class="eyebrow" id="subtitle">75 Hard: Cologne Edition</p>
-    <h1 id="title">Vote My Next Fragrance</h1>
-    <p class="tagline" id="tagline"></p>
+  <div class="wrap">
+    <header class="hero">
+      <p class="eyebrow">75 Hard · Cologne Edition</p>
+      <h1 id="title">Vote My Next Fragrance</h1>
+      <p class="tagline" id="tagline"></p>
+    </header>
 
-    <section class="progress" aria-label="Challenge progress">
-      <div class="progress-head">
-        <span id="day-label">Day 0 of 75</span>
-        <span id="day-status"></span>
+    <section id="progress" aria-labelledby="progress-h">
+      <header>
+        <p class="eyebrow">The challenge</p>
+        <h2 id="progress-h">Where I'm at</h2>
+      </header>
+      <div class="scoreboard">
+        <div class="daycount">
+          <span class="pill" id="attempt-pill">Loading…</span>
+          <div class="big" id="day-big">–</div>
+          <p class="status muted" id="day-status"></p>
+        </div>
+        <div>
+          <p class="muted" id="tasks-heading" style="margin:0 0 8px;font-size:14px">Today</p>
+          <ul class="tasks" id="tasks"></ul>
+        </div>
       </div>
-      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+      <div class="calendar" id="calendar" aria-label="Days completed in the current attempt"></div>
+      <div class="legend"><span class="l-pass">Completed</span><span class="l-today">Today</span><span>Still to go</span></div>
+      <div class="stats" id="stats"></div>
+      <ul class="attempts" id="attempts"></ul>
     </section>
-  </header>
 
-  <main>
-    <div class="toolbar">
-      <p id="status" role="status">Loading the lineup…</p>
-      <button class="share" id="share" type="button">Share the vote</button>
-    </div>
-    <ol class="grid" id="grid"></ol>
-  </main>
+    <section id="vote" aria-labelledby="vote-h">
+      <header>
+        <p class="eyebrow">The reward</p>
+        <h2 id="vote-h">Pick the bottle I earn</h2>
+        <p class="muted" id="vote-intro" style="margin:0">One vote per person. Change it anytime until I finish Day 75.</p>
+      </header>
+      <div id="winner" class="winner" hidden></div>
+      <ol class="ballot" id="ballot"></ol>
+      <p class="ballot-status" id="ballot-status" role="status"></p>
+    </section>
 
-  <footer>
-    <p><span id="total">0 votes</span> so far · one vote per person, change it anytime until voting closes.</p>
-  </footer>
+    <section id="suggest" aria-labelledby="suggest-h">
+      <header>
+        <p class="eyebrow">Write-in</p>
+        <h2 id="suggest-h">Know a better scent?</h2>
+        <p class="muted" style="margin:0">Suggest one. If I approve it, it joins the ballot.</p>
+      </header>
+      <form class="form" id="suggest-form">
+        <div class="row">
+          <label for="s-name">Fragrance<input id="s-name" name="name" maxlength="80" required placeholder="e.g. Terre d'Hermès"></label>
+          <label for="s-house">Brand (optional)<input id="s-house" name="house" maxlength="60" placeholder="e.g. Hermès"></label>
+        </div>
+        <button class="btn" type="submit">Send suggestion</button>
+        <p class="form-msg" id="suggest-msg" role="status"></p>
+      </form>
+    </section>
+  </div>
 
-  <template id="card-template">
-    <li class="card">
-      <button class="card-btn" type="button">
-        <span class="bottle" aria-hidden="true"><span class="cap"></span><span class="glass"></span></span>
-        <span class="info">
-          <span class="house"></span>
-          <span class="name"></span>
-          <span class="notes"></span>
-          <span class="vibe"></span>
-        </span>
-        <span class="pick">Vote</span>
-      </button>
-      <div class="result" hidden>
-        <div class="bar"><div class="bar-fill"></div></div>
-        <span class="pct"></span>
-      </div>
-    </li>
-  </template>
+  <footer class="site"><div class="wrap">Rules: 45 min workout · 10,000 steps · 300–500 calorie deficit · 10 min of French. Miss anything and it's back to Day 1.</div></footer>
 
-  <script src="app.js"></script>
+  <script src="/common.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

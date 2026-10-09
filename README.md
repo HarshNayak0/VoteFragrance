@@ -1,58 +1,51 @@
 # Vote My Next Fragrance
 
-A tiny website where anyone can vote on the cologne I buy after finishing **75 Hard: Cologne Edition**.
+A website that tracks my **75 Hard: Cologne Edition** challenge and lets anyone vote on the fragrance I buy when I finish.
 
-- Shows the 75-day challenge progress bar
-- One vote per person (cookie-based), changeable until voting closes
-- Live results appear after you vote and refresh every 15 seconds
-- Light and dark mode, works on phones
-- Zero dependencies: plain Node.js. Runs on Vercel with Upstash Redis, or locally with a JSON file
+**The daily rules:** 45 minute workout · 10,000 steps · 300–500 calorie deficit · 10 minutes of French.
+Miss any of them (or forget to log a day) and the challenge restarts at Day 1 the next day.
+
+## What's on the site
+
+**Public page (`/`)**
+- Current day out of 75, the attempt number, and today's four tasks
+- A 75-square calendar of the current attempt, running totals (steps, workout hours, calories cut, French hours) and earlier attempts
+- The fragrance ballot: one vote per person, changeable until Day 75 is complete. Then voting closes and the winner is announced.
+- A suggestion box. Suggestions wait for your approval before they reach the ballot.
+
+**Admin page (`/admin`, password protected)**
+- Log a day: enter your numbers and it shows which tasks passed before you save. Edit or delete any past day.
+- Add, edit and remove fragrances. Approve or reject visitor suggestions.
+- Settings: site title, tagline, Day 1 date and your time zone (so "today" flips at your midnight).
+
+## Deploy on Vercel
+
+1. Import this GitHub repo in Vercel (**Add New → Project**). Leave the build settings at their defaults.
+2. **Storage → Create Database → Upstash (Redis)**, free plan, connect it to the project. Vercel adds the keys for you.
+3. **Settings → Environment Variables**, add:
+   - `ADMIN_PASSWORD`: the password for `/admin`
+   - `SESSION_SECRET`: any long random string (keeps you logged in safely; changing it logs you out everywhere)
+4. **Deployments → ⋯ → Redeploy** so everything picks up the new variables.
+5. Open `https://<your-project>.vercel.app/admin`, log in, set your Day 1 date and time zone, and add your fragrances.
 
 ## Run it locally
 
 ```bash
-npm start            # http://localhost:3000
+ADMIN_PASSWORD=dev npm run dev   # http://localhost:3000 and /admin
 npm test
 ```
 
-Node 18+ required. Nothing to install.
+Node 20+. No dependencies to install. Locally, data is saved to `data/store.json` (git-ignored) unless the Upstash variables are set.
 
-## Customize
+## How it's built
 
-Everything lives in [`config.json`](config.json):
-
-| Field | What it does |
+| Path | What it is |
 | --- | --- |
-| `challengeStartDate` | Day 1 of your 75 Hard (`YYYY-MM-DD`). Drives the progress bar. |
-| `challengeDays` | Length of the challenge (75). |
-| `votingClosesAt` | ISO timestamp to lock voting, e.g. `"2026-12-15T23:59:00-05:00"`. `null` keeps it open. |
-| `maxVotersPerIp` | Caps how many different voters can come from one network, to slow down ballot stuffing. `0` disables. |
-| `fragrances` | The lineup. Each needs a unique `id`; `name`, `house`, `notes` and `vibe` are shown on the card. |
+| `public/` | The two pages (`index.html`, `admin.html`), served as static files |
+| `api/` | One tiny Vercel function per endpoint, all routed into `lib/api.js` |
+| `lib/challenge.js` | The 75 Hard rules: what passes a day, streaks, restarts, completion |
+| `lib/api.js` | Endpoints, validation, admin sessions, rate limits |
+| `lib/stores.js` | Storage: Upstash Redis over its REST API, or memory/JSON file locally |
+| `server.js` | Local development server |
 
-Don't rename or remove an `id` after votes come in: votes for it would stop counting.
-
-## Put it online (Vercel)
-
-1. Push this repo to GitHub, then in Vercel choose **Add New → Project** and import it. Leave every build setting at its default; `vercel.json` already handles them.
-2. In the project, open **Storage → Create Database → Upstash (Redis)**, use the free plan, and connect it to the project. Vercel adds the database keys to the project automatically.
-3. Redeploy (**Deployments → ⋯ → Redeploy**) so the functions pick up the keys.
-
-That's it. Share the `*.vercel.app` URL, or add your own domain under **Settings → Domains**.
-
-How it fits together on Vercel: `public/` is served as the static site, and `api/state.js` and `api/vote.js` run as serverless functions that keep votes in Redis. If the site says "No database connected", step 2 or 3 was skipped.
-
-Locally, `npm start` stores votes in `data/votes.json` instead, unless you set the Redis variables below.
-
-### Environment variables
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `PORT` | `3000` | Port to listen on |
-| `DATA_DIR` | `./data` | Local server only: where `votes.json` is written |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | none | Upstash Redis credentials. Vercel sets these when you connect the database (the older `UPSTASH_REDIS_REST_URL`/`_TOKEN` names also work). |
-| `TRUST_PROXY` | off | Local server only: set to `1` behind a proxy so the real client IP is used and cookies are `Secure`. Always on for Vercel. |
-| `IP_SALT` | `vote-fragrance` | Salt for hashing IPs (raw IPs are never stored) |
-
-## Peeking at the raw votes
-
-`GET /api/state` returns the full tally. On Vercel you can also browse the `vf:counts` hash in the Upstash console.
+Anti-abuse: a voter is identified by a cookie, at most 5 different voters per network, 3 suggestions per network per day, 10 admin login attempts per 15 minutes. IP addresses are only stored as salted hashes. Set `IP_SALT` to your own random string if you like.
